@@ -143,21 +143,14 @@ impl<'a> GeneratorState<'a> {
                             _ => (),
                         }
                     } else if v.var_type == VariableType::Short && !*eight_bits {
-                        match op {
-                            Operation::And(_) => {
-                                if *r == 255 {
-                                    if high_byte {
-                                        return Ok(ExprType::Immediate(0));
-                                    } else {
-                                        return Ok(ExprType::Absolute(
-                                            variable.clone(),
-                                            true,
-                                            *off,
-                                        ));
-                                    }
+                        if let Operation::And(_) = op {
+                            if *r == 255 {
+                                if high_byte {
+                                    return Ok(ExprType::Immediate(0));
+                                } else {
+                                    return Ok(ExprType::Absolute(variable.clone(), true, *off));
                                 }
                             }
-                            _ => (),
                         }
                     }
                 }
@@ -190,9 +183,8 @@ impl<'a> GeneratorState<'a> {
                 // Optimization in case of or 0
                 if let Operation::Or(_) = op {
                     if let ExprType::Immediate(v) = right2 {
-                        if !high_byte && (v & 0xff) == 0 {
-                            return Ok(ExprType::X);
-                        } else if high_byte && (v & 0xff00) == 0 {
+                        let check_value = if high_byte { v & 0xff00 } else { v & 0xff };
+                        if check_value == 0 {
                             return Ok(ExprType::X);
                         }
                     }
@@ -207,9 +199,8 @@ impl<'a> GeneratorState<'a> {
                 // Optimization in case of or 0
                 if let Operation::Or(_) = op {
                     if let ExprType::Immediate(v) = right2 {
-                        if !high_byte && (v & 0xff) == 0 {
-                            return Ok(ExprType::Y);
-                        } else if high_byte && (v & 0xff00) == 0 {
+                        let check_value = if high_byte { v & 0xff00 } else { v & 0xff };
+                        if check_value == 0 {
                             return Ok(ExprType::Y);
                         }
                     }
@@ -278,10 +269,10 @@ impl<'a> GeneratorState<'a> {
             ExprType::Immediate(v) => {
                 if !high_byte && operation == ADC && *v & 0xff == 0 {
                     // Do not insert the ADD #0 instruction
-                } else if high_byte || operation != AND || *v & 0xff != 0xff {
-                    if *v != 0 || operation == AND || high_byte {
-                        self.asm(operation, right2, pos, high_byte)?;
-                    }
+                } else if (high_byte || operation != AND || *v & 0xff != 0xff)
+                    && (*v != 0 || operation == AND || high_byte)
+                {
+                    self.asm(operation, right2, pos, high_byte)?;
                 }
             }
             ExprType::Absolute(_, _, _) | ExprType::AbsoluteX(_) | ExprType::AbsoluteY(_) => {
