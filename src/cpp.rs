@@ -558,7 +558,7 @@ pub fn process<I: BufRead, O: Write>(
                     } else {
                         let mut rex = format!("\\b{}\\(", mcro);
                         let params = caps.get(2).unwrap().as_str();
-                        if params != "" {
+                        if !params.is_empty() {
                             for v in caps.get(2).unwrap().as_str().split(',') {
                                 let vx = v.trim_start();
                                 let re = Regex::new(&format!("\\b{}\\b", vx)).unwrap();
