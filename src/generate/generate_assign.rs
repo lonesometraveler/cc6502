@@ -254,7 +254,7 @@ impl<'a> GeneratorState<'a> {
                                 }
                                 self.sasm(TXA)?;
                                 self.acc_in_use = true;
-                                return Ok(ExprType::A(false));
+                                Ok(ExprType::A(false))
                             }
                             ExprType::Tmp(_) => {
                                 if self.tmp_in_use {
@@ -264,7 +264,7 @@ impl<'a> GeneratorState<'a> {
                                 }
                                 self.asm(STX, left, pos, high_byte)?;
                                 self.tmp_in_use = true;
-                                return Ok(ExprType::Tmp(false));
+                                Ok(ExprType::Tmp(false))
                             }
                             _ => Err(self
                                 .compiler_state
@@ -336,7 +336,7 @@ impl<'a> GeneratorState<'a> {
                                 }
                                 self.sasm(TYA)?;
                                 self.acc_in_use = true;
-                                return Ok(ExprType::A(false));
+                                Ok(ExprType::A(false))
                             }
                             ExprType::Tmp(_) => {
                                 if self.tmp_in_use {
@@ -346,7 +346,7 @@ impl<'a> GeneratorState<'a> {
                                 }
                                 self.asm(STY, left, pos, high_byte)?;
                                 self.tmp_in_use = true;
-                                return Ok(ExprType::Tmp(false));
+                                Ok(ExprType::Tmp(false))
                             }
                             _ => Err(self
                                 .compiler_state
