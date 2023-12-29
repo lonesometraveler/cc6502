@@ -256,18 +256,11 @@ impl AssemblyCode {
         // Analyze the first instruction to check for a load
         if let Some(AsmLine::Instruction(inst)) = &first {
             if inst.dasm_operand.starts_with('#') {
-                if inst.mnemonic == AsmMnemonic::LDA {
-                    if let Ok(v) = inst.dasm_operand[1..].parse::<i32>() {
-                        accumulator = Some(v);
-                    }
-                } else if inst.mnemonic == AsmMnemonic::LDX {
-                    if let Ok(v) = inst.dasm_operand[1..].parse::<i32>() {
-                        x_register = Some(v);
-                    }
-                } else if inst.mnemonic == AsmMnemonic::LDY {
-                    if let Ok(v) = inst.dasm_operand[1..].parse::<i32>() {
-                        y_register = Some(v);
-                    }
+                match inst.mnemonic {
+                    AsmMnemonic::LDA => accumulator = inst.dasm_operand[1..].parse().ok(),
+                    AsmMnemonic::LDX => x_register = inst.dasm_operand[1..].parse().ok(),
+                    AsmMnemonic::LDY => y_register = inst.dasm_operand[1..].parse().ok(),
+                    _ => (),
                 }
             }
         } else {
@@ -305,18 +298,17 @@ impl AssemblyCode {
                         // Analyze the first instruction to check for a load
                         if let Some(AsmLine::Instruction(inst)) = &first {
                             if inst.dasm_operand.starts_with('#') {
-                                if inst.mnemonic == AsmMnemonic::LDA {
-                                    if let Ok(v) = inst.dasm_operand[1..].parse::<i32>() {
-                                        accumulator = Some(v);
+                                match inst.mnemonic {
+                                    AsmMnemonic::LDA => {
+                                        accumulator = inst.dasm_operand[1..].parse().ok()
                                     }
-                                } else if inst.mnemonic == AsmMnemonic::LDX {
-                                    if let Ok(v) = inst.dasm_operand[1..].parse::<i32>() {
-                                        x_register = Some(v);
+                                    AsmMnemonic::LDX => {
+                                        x_register = inst.dasm_operand[1..].parse().ok()
                                     }
-                                } else if inst.mnemonic == AsmMnemonic::LDY {
-                                    if let Ok(v) = inst.dasm_operand[1..].parse::<i32>() {
-                                        y_register = Some(v);
+                                    AsmMnemonic::LDY => {
+                                        y_register = inst.dasm_operand[1..].parse().ok()
                                     }
+                                    _ => (),
                                 }
                             }
                         } else {
@@ -622,14 +614,11 @@ impl AssemblyCode {
                 // Analyze the first instruction to check for a load
                 if let Some(AsmLine::Instruction(inst)) = &first {
                     if inst.dasm_operand.starts_with('#') {
-                        if inst.mnemonic == AsmMnemonic::LDA {
-                            accumulator = inst.dasm_operand[1..].parse::<i32>().ok();
-                        }
-                        if inst.mnemonic == AsmMnemonic::LDX {
-                            x_register = inst.dasm_operand[1..].parse::<i32>().ok();
-                        }
-                        if inst.mnemonic == AsmMnemonic::LDY {
-                            y_register = inst.dasm_operand[1..].parse::<i32>().ok();
+                        match inst.mnemonic {
+                            AsmMnemonic::LDA => accumulator = inst.dasm_operand[1..].parse().ok(),
+                            AsmMnemonic::LDX => x_register = inst.dasm_operand[1..].parse().ok(),
+                            AsmMnemonic::LDY => y_register = inst.dasm_operand[1..].parse().ok(),
+                            _ => (),
                         }
                     }
                 } else {
