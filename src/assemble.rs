@@ -1,6 +1,6 @@
 /*
-    cc6502 - a subset of C compiler for the 6502 processor 
-    Copyright (C) 2023 Bruno STEUX 
+    cc6502 - a subset of C compiler for the 6502 processor
+    Copyright (C) 2023 Bruno STEUX
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -18,31 +18,59 @@
     Contact info: bruno.steux@gmail.com
 */
 
-use std::io::Write;
-use std::fmt::{self, Debug};
-use log::{debug, error};
 use crate::compile::Operation;
+use log::{debug, error};
+use std::fmt::{self, Debug};
+use std::io::Write;
 
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub enum AsmMnemonic {
-    LDA, LDX, LDY,
-    STA, STX, STY,
-    TAX, TAY, TXA, TYA,
-    ADC, SBC, EOR, AND, ORA,
-    LSR, ASL, ROR,
-    CLC, SEC,  
-    CMP, CPX, CPY, 
-    BCC, BCS, BEQ, BMI, BNE, BPL,
-    INC, INX, INY,
-    DEC, DEX, DEY,
-    JMP, JSR, 
-    RTS, RTI,
-    PHA, PLA,
+    LDA,
+    LDX,
+    LDY,
+    STA,
+    STX,
+    STY,
+    TAX,
+    TAY,
+    TXA,
+    TYA,
+    ADC,
+    SBC,
+    EOR,
+    AND,
+    ORA,
+    LSR,
+    ASL,
+    ROR,
+    CLC,
+    SEC,
+    CMP,
+    CPX,
+    CPY,
+    BCC,
+    BCS,
+    BEQ,
+    BMI,
+    BNE,
+    BPL,
+    INC,
+    INX,
+    INY,
+    DEC,
+    DEX,
+    DEY,
+    JMP,
+    JSR,
+    RTS,
+    RTI,
+    PHA,
+    PLA,
     #[cfg(constant_time)]
-    PHP, 
+    PHP,
     #[cfg(constant_time)]
     PLP,
-    NOP
+    NOP,
 }
 
 impl fmt::Display for AsmMnemonic {
@@ -74,10 +102,10 @@ impl AsmLine {
     fn write(&self, writer: &mut dyn Write, cycles: bool) -> Result<usize, std::io::Error> {
         let mut s = 0;
         match self {
-            AsmLine::Label(string) => { 
+            AsmLine::Label(string) => {
                 s += writer.write(string.as_bytes())?;
                 s += writer.write("\n".as_bytes())?;
-            },
+            }
             AsmLine::Instruction(inst) => {
                 if cycles {
                     let c = if let Some(alt) = inst.cycles_alt {
@@ -86,24 +114,29 @@ impl AsmLine {
                         format!("\t; {}", inst.cycles)
                     };
                     if !inst.dasm_operand.is_empty() {
-                        s += writer.write(format!("\t{} {:19}{}\n", inst.mnemonic, &inst.dasm_operand, c).as_bytes())?;
+                        s += writer.write(
+                            format!("\t{} {:19}{}\n", inst.mnemonic, &inst.dasm_operand, c)
+                                .as_bytes(),
+                        )?;
                     } else {
                         s += writer.write(format!("\t{:23}{}\n", inst.mnemonic, c).as_bytes())?;
                     }
                 } else {
                     if !inst.dasm_operand.is_empty() {
-                        s += writer.write(format!("\t{} {}\n", inst.mnemonic, &inst.dasm_operand).as_bytes())?;
+                        s += writer.write(
+                            format!("\t{} {}\n", inst.mnemonic, &inst.dasm_operand).as_bytes(),
+                        )?;
                     } else {
                         s += writer.write(format!("\t{}\n", inst.mnemonic).as_bytes())?;
                     }
                 }
-            },
+            }
             AsmLine::Inline(inst, _) => {
                 s += writer.write(format!("\t{}\n", inst).as_bytes())?;
-            },
+            }
             AsmLine::Comment(comment) => {
                 s += writer.write(format!(";{}\n", comment).as_bytes())?;
-            },
+            }
             AsmLine::Dummy => (),
         }
         Ok(s)
@@ -112,13 +145,13 @@ impl AsmLine {
 
 #[derive(Debug, Clone)]
 pub struct AssemblyCode {
-    code: Vec<AsmLine>
+    code: Vec<AsmLine>,
 }
 
 impl AssemblyCode {
     pub fn new() -> AssemblyCode {
         AssemblyCode {
-            code: Vec::<AsmLine>::new()
+            code: Vec::<AsmLine>::new(),
         }
     }
 
@@ -128,10 +161,10 @@ impl AssemblyCode {
             match c {
                 AsmLine::Instruction(i) => {
                     size += i.nb_bytes;
-                },
+                }
                 AsmLine::Inline(_, s) => {
                     size += s;
-                },
+                }
                 _ => {}
             }
         }
@@ -160,28 +193,34 @@ impl AssemblyCode {
     }
 
     pub fn set(&mut self, line: usize, inst: AsmInstruction) {
-        *self.code.get_mut(line).unwrap() = AsmLine::Instruction(inst);   
+        *self.code.get_mut(line).unwrap() = AsmLine::Instruction(inst);
     }
-    
+
     // For inlined code: modify local labels in each instruction
-    pub fn append_code(&mut self, code: &AssemblyCode, inline_counter: u32)  {
+    pub fn append_code(&mut self, code: &AssemblyCode, inline_counter: u32) {
         for i in &code.code {
             match i {
-                AsmLine::Label(l) => self.code.push(AsmLine::Label(format!("{}inline{}", l, inline_counter))),
-                AsmLine::Instruction(inst) => {
-                    match inst.mnemonic {
-                        AsmMnemonic::BCC | AsmMnemonic::BCS | AsmMnemonic::BEQ | AsmMnemonic::BMI | AsmMnemonic::BNE | AsmMnemonic::BPL | AsmMnemonic::JMP => {
-                            self.code.push(AsmLine::Instruction(AsmInstruction {
-                                mnemonic: inst.mnemonic,
-                                dasm_operand: format!("{}inline{}", inst.dasm_operand, inline_counter),
-                                cycles: inst.cycles,
-                                cycles_alt: inst.cycles_alt,
-                                nb_bytes: inst.nb_bytes,
-                                protected: false,
-                            }));
-                        },
-                        _ => self.code.push(i.clone()),
+                AsmLine::Label(l) => self
+                    .code
+                    .push(AsmLine::Label(format!("{}inline{}", l, inline_counter))),
+                AsmLine::Instruction(inst) => match inst.mnemonic {
+                    AsmMnemonic::BCC
+                    | AsmMnemonic::BCS
+                    | AsmMnemonic::BEQ
+                    | AsmMnemonic::BMI
+                    | AsmMnemonic::BNE
+                    | AsmMnemonic::BPL
+                    | AsmMnemonic::JMP => {
+                        self.code.push(AsmLine::Instruction(AsmInstruction {
+                            mnemonic: inst.mnemonic,
+                            dasm_operand: format!("{}inline{}", inst.dasm_operand, inline_counter),
+                            cycles: inst.cycles,
+                            cycles_alt: inst.cycles_alt,
+                            nb_bytes: inst.nb_bytes,
+                            protected: false,
+                        }));
                     }
+                    _ => self.code.push(i.clone()),
                 },
                 _ => self.code.push(i.clone()),
             }
@@ -231,7 +270,9 @@ impl AssemblyCode {
                     }
                 }
             }
-        } else { unreachable!(); }
+        } else {
+            unreachable!();
+        }
 
         loop {
             // For each iteration of this loop, first must point to an Instruction
@@ -240,7 +281,7 @@ impl AssemblyCode {
             let mut remove_first = false;
             let mut remove_second = false;
             let mut swap_both = false;
-            
+
             // Make sure second points also to an instruction
             loop {
                 match &second {
@@ -278,8 +319,10 @@ impl AssemblyCode {
                                     }
                                 }
                             }
-                        } else { unreachable!(); }
-                    },
+                        } else {
+                            unreachable!();
+                        }
+                    }
                     _ => second = iter.next(),
                 }
             }
@@ -288,54 +331,97 @@ impl AssemblyCode {
             if let Some(AsmLine::Instruction(i1)) = &first {
                 if let Some(AsmLine::Instruction(i2)) = &second {
                     // Remove PLA/PHA pairs
-                    if i1.mnemonic == AsmMnemonic::PLA && i2.mnemonic == AsmMnemonic::PHA && !i1.protected && !i2.protected {
+                    if i1.mnemonic == AsmMnemonic::PLA
+                        && i2.mnemonic == AsmMnemonic::PHA
+                        && !i1.protected
+                        && !i2.protected
+                    {
                         remove_both = true;
                     }
                     // Remove STA followed by LDA
-                    if i1.mnemonic == AsmMnemonic::STA && i2.mnemonic == AsmMnemonic::LDA && i1.dasm_operand == i2.dasm_operand && !i2.protected {
+                    if i1.mnemonic == AsmMnemonic::STA
+                        && i2.mnemonic == AsmMnemonic::LDA
+                        && i1.dasm_operand == i2.dasm_operand
+                        && !i2.protected
+                    {
                         remove_second = true;
                     }
                     // Remove LDA followed by STA
-                    if i1.mnemonic == AsmMnemonic::LDA && i2.mnemonic == AsmMnemonic::STA && i1.dasm_operand == i2.dasm_operand && !i2.protected {
+                    if i1.mnemonic == AsmMnemonic::LDA
+                        && i2.mnemonic == AsmMnemonic::STA
+                        && i1.dasm_operand == i2.dasm_operand
+                        && !i2.protected
+                    {
                         remove_second = true;
                     }
                     // Remove LDY followed by STY
-                    if i1.mnemonic == AsmMnemonic::LDY && i2.mnemonic == AsmMnemonic::STY && i1.dasm_operand == i2.dasm_operand && !i2.protected {
+                    if i1.mnemonic == AsmMnemonic::LDY
+                        && i2.mnemonic == AsmMnemonic::STY
+                        && i1.dasm_operand == i2.dasm_operand
+                        && !i2.protected
+                    {
                         remove_second = true;
                     }
                     // Remove LDX followed by STX
-                    if i1.mnemonic == AsmMnemonic::LDX && i2.mnemonic == AsmMnemonic::STX && i1.dasm_operand == i2.dasm_operand && !i2.protected {
+                    if i1.mnemonic == AsmMnemonic::LDX
+                        && i2.mnemonic == AsmMnemonic::STX
+                        && i1.dasm_operand == i2.dasm_operand
+                        && !i2.protected
+                    {
                         remove_second = true;
                     }
                     // Remove TAX followed by TXA
-                    if i1.mnemonic == AsmMnemonic::TAX && i2.mnemonic == AsmMnemonic::TXA && !i2.protected {
+                    if i1.mnemonic == AsmMnemonic::TAX
+                        && i2.mnemonic == AsmMnemonic::TXA
+                        && !i2.protected
+                    {
                         remove_second = true;
                     }
                     // Remove TXA followed by TAX
-                    if i1.mnemonic == AsmMnemonic::TXA && i2.mnemonic == AsmMnemonic::TAX && !i2.protected {
+                    if i1.mnemonic == AsmMnemonic::TXA
+                        && i2.mnemonic == AsmMnemonic::TAX
+                        && !i2.protected
+                    {
                         remove_second = true;
                     }
                     // Remove TAY followed by TYA
-                    if i1.mnemonic == AsmMnemonic::TAY && i2.mnemonic == AsmMnemonic::TYA && !i2.protected {
+                    if i1.mnemonic == AsmMnemonic::TAY
+                        && i2.mnemonic == AsmMnemonic::TYA
+                        && !i2.protected
+                    {
                         remove_second = true;
                     }
                     // Remove TYA followed by TAY
-                    if i1.mnemonic == AsmMnemonic::TYA && i2.mnemonic == AsmMnemonic::TAY && !i2.protected {
+                    if i1.mnemonic == AsmMnemonic::TYA
+                        && i2.mnemonic == AsmMnemonic::TAY
+                        && !i2.protected
+                    {
                         remove_second = true;
                     }
-                    if i1.mnemonic == AsmMnemonic::LDA && i2.mnemonic == AsmMnemonic::LDA && !i1.protected {
+                    if i1.mnemonic == AsmMnemonic::LDA
+                        && i2.mnemonic == AsmMnemonic::LDA
+                        && !i1.protected
+                    {
                         remove_first = true;
                     }
-                    if i1.mnemonic == AsmMnemonic::LDY && i2.mnemonic == AsmMnemonic::LDY && !i1.protected {
+                    if i1.mnemonic == AsmMnemonic::LDY
+                        && i2.mnemonic == AsmMnemonic::LDY
+                        && !i1.protected
+                    {
                         remove_first = true;
-                    } 
-                    if i1.mnemonic == AsmMnemonic::LDX && i2.mnemonic == AsmMnemonic::LDX && !i1.protected {
+                    }
+                    if i1.mnemonic == AsmMnemonic::LDX
+                        && i2.mnemonic == AsmMnemonic::LDX
+                        && !i1.protected
+                    {
                         remove_first = true;
                     }
                     if i2.mnemonic == AsmMnemonic::ORA && i2.dasm_operand == "#0" && !i2.protected {
                         remove_second = true;
                     }
-                    if i1.mnemonic == AsmMnemonic::LDA && (i2.mnemonic == AsmMnemonic::SEC || i2.mnemonic == AsmMnemonic::CLC) {
+                    if i1.mnemonic == AsmMnemonic::LDA
+                        && (i2.mnemonic == AsmMnemonic::SEC || i2.mnemonic == AsmMnemonic::CLC)
+                    {
                         swap_both = true;
                     }
                     // Check CMP and remove the branck if the result is obvious
@@ -344,29 +430,37 @@ impl AssemblyCode {
                             if let Ok(v) = i1.dasm_operand[1..].parse::<i32>() {
                                 // The result IS obvious
                                 match i2.mnemonic {
-                                    AsmMnemonic::BNE => if r == v {
-                                        remove_both = true;
-                                    },
-                                    AsmMnemonic::BEQ => if r != v {
-                                        remove_both = true;
-                                    },
-                                    _ => ()
+                                    AsmMnemonic::BNE => {
+                                        if r == v {
+                                            remove_both = true;
+                                        }
+                                    }
+                                    AsmMnemonic::BEQ => {
+                                        if r != v {
+                                            remove_both = true;
+                                        }
+                                    }
+                                    _ => (),
                                 }
                             }
                         }
                     }
                     if let Some(r) = x_register {
                         if i1.mnemonic == AsmMnemonic::CPX && i1.dasm_operand.starts_with('#') {
-                            if let Ok(v) =i1.dasm_operand[1..].parse::<i32>() {
+                            if let Ok(v) = i1.dasm_operand[1..].parse::<i32>() {
                                 // The result IS obvious
                                 match i2.mnemonic {
-                                    AsmMnemonic::BNE => if r == v {
-                                        remove_both = true;
-                                    },
-                                    AsmMnemonic::BEQ => if r != v {
-                                        remove_both = true;
-                                    },
-                                    _ => ()
+                                    AsmMnemonic::BNE => {
+                                        if r == v {
+                                            remove_both = true;
+                                        }
+                                    }
+                                    AsmMnemonic::BEQ => {
+                                        if r != v {
+                                            remove_both = true;
+                                        }
+                                    }
+                                    _ => (),
                                 }
                             }
                         }
@@ -376,19 +470,27 @@ impl AssemblyCode {
                             if let Ok(v) = i1.dasm_operand[1..].parse::<i32>() {
                                 // The result IS obvious
                                 match i2.mnemonic {
-                                    AsmMnemonic::BNE => if r == v {
-                                        remove_both = true;
-                                    },
-                                    AsmMnemonic::BEQ => if r != v {
-                                        remove_both = true;
-                                    },
-                                    _ => ()
+                                    AsmMnemonic::BNE => {
+                                        if r == v {
+                                            remove_both = true;
+                                        }
+                                    }
+                                    AsmMnemonic::BEQ => {
+                                        if r != v {
+                                            remove_both = true;
+                                        }
+                                    }
+                                    _ => (),
                                 }
                             }
                         }
                     }
-                } else { unreachable!() };
-            } else { unreachable!() };
+                } else {
+                    unreachable!()
+                };
+            } else {
+                unreachable!()
+            };
 
             if !remove_second {
                 // Analyze the second instruction to check for a load
@@ -407,14 +509,14 @@ impl AssemblyCode {
                                             }
                                         } else {
                                             accumulator = Some(v);
-                                        } 
-                                    },
+                                        }
+                                    }
                                     _ => accumulator = None,
                                 }
                             } else {
                                 accumulator = None;
-                            } 
-                        },
+                            }
+                        }
                         AsmMnemonic::LDX => {
                             if inst.dasm_operand.starts_with('#') {
                                 match inst.dasm_operand[1..].parse::<i32>() {
@@ -428,14 +530,14 @@ impl AssemblyCode {
                                             }
                                         } else {
                                             x_register = Some(v);
-                                        } 
-                                    },
+                                        }
+                                    }
                                     _ => x_register = None,
                                 }
                             } else {
                                 x_register = None;
-                            } 
-                        },
+                            }
+                        }
                         AsmMnemonic::LDY => {
                             if inst.dasm_operand.starts_with('#') {
                                 match inst.dasm_operand[1..].parse::<i32>() {
@@ -450,39 +552,49 @@ impl AssemblyCode {
                                         } else {
                                             y_register = Some(v);
                                         }
-                                    },
+                                    }
                                     _ => y_register = None,
                                 }
                             } else {
                                 y_register = None;
-                            } 
-                        },
-                        AsmMnemonic::INX | AsmMnemonic::DEX  => x_register = None,
-                        AsmMnemonic::INY | AsmMnemonic::DEY  => y_register = None,
+                            }
+                        }
+                        AsmMnemonic::INX | AsmMnemonic::DEX => x_register = None,
+                        AsmMnemonic::INY | AsmMnemonic::DEY => y_register = None,
                         AsmMnemonic::TAX => x_register = accumulator,
                         AsmMnemonic::TAY => y_register = accumulator,
                         AsmMnemonic::TXA => accumulator = x_register,
                         AsmMnemonic::TYA => accumulator = y_register,
-                        AsmMnemonic::ADC | AsmMnemonic::SBC | AsmMnemonic::EOR | AsmMnemonic::AND | AsmMnemonic::ORA => accumulator = None,
+                        AsmMnemonic::ADC
+                        | AsmMnemonic::SBC
+                        | AsmMnemonic::EOR
+                        | AsmMnemonic::AND
+                        | AsmMnemonic::ORA => accumulator = None,
                         AsmMnemonic::LSR | AsmMnemonic::ASL => accumulator = None,
                         AsmMnemonic::PLA | AsmMnemonic::PHA => accumulator = None,
                         AsmMnemonic::JSR | AsmMnemonic::JMP => {
                             accumulator = None;
                             x_register = None;
                             y_register = None;
-                        },
-                        _ => ()
+                        }
+                        _ => (),
                     }
-                } else { unreachable!(); }
+                } else {
+                    unreachable!();
+                }
             }
 
             if swap_both {
                 let tmp1 = if let Some(f) = &first {
                     (**f).clone()
-                } else { AsmLine::Dummy };
+                } else {
+                    AsmLine::Dummy
+                };
                 let tmp2 = if let Some(f) = &second {
                     (**f).clone()
-                } else { AsmLine::Dummy };
+                } else {
+                    AsmLine::Dummy
+                };
                 if let Some(f) = &mut first {
                     (**f) = tmp2;
                 }
@@ -520,7 +632,9 @@ impl AssemblyCode {
                             y_register = inst.dasm_operand[1..].parse::<i32>().ok();
                         }
                     }
-                } else { unreachable!(); }
+                } else {
+                    unreachable!();
+                }
                 second = iter.next();
             } else if remove_second {
                 *second.unwrap() = AsmLine::Dummy;
@@ -537,7 +651,7 @@ impl AssemblyCode {
             }
         }
     }
-    
+
     pub fn check_branches(&mut self) -> u32 {
         // Loop until there is no problematic branch instruction
         let mut restart = true;
@@ -551,11 +665,18 @@ impl AssemblyCode {
             let mut repair = false;
             loop {
                 let j = i.next();
-                if j.is_none() { restart = false; break; }
+                if j.is_none() {
+                    restart = false;
+                    break;
+                }
                 if let Some(AsmLine::Instruction(inst)) = j {
                     match inst.mnemonic {
-                        AsmMnemonic::BEQ | AsmMnemonic::BNE | AsmMnemonic::BMI |
-                        AsmMnemonic::BPL | AsmMnemonic::BCS | AsmMnemonic::BCC => {
+                        AsmMnemonic::BEQ
+                        | AsmMnemonic::BNE
+                        | AsmMnemonic::BMI
+                        | AsmMnemonic::BPL
+                        | AsmMnemonic::BCS
+                        | AsmMnemonic::BCC => {
                             // Ok, let's try to find the label above and under and try to count the bytes
                             let mut bytes_above = 0;
                             let mut bytes_below = 0;
@@ -572,16 +693,16 @@ impl AssemblyCode {
                                             if *l == inst.dasm_operand {
                                                 above = true;
                                                 break;
-                                            } 
-                                        },
+                                            }
+                                        }
                                         AsmLine::Inline(_, s) => {
-                                            bytes_above += s; 
-                                        },
+                                            bytes_above += s;
+                                        }
                                         AsmLine::Instruction(k) => {
                                             debug!("Iter above: {:?}", k);
                                             bytes_above += k.nb_bytes;
-                                        },
-                                        _ => ()
+                                        }
+                                        _ => (),
                                     }
                                 }
                                 match self.code.get(index_below) {
@@ -590,17 +711,17 @@ impl AssemblyCode {
                                         if *l == inst.dasm_operand {
                                             above = false;
                                             break;
-                                        } 
-                                    },
+                                        }
+                                    }
                                     Some(AsmLine::Inline(_, s)) => {
-                                        bytes_below += s; 
-                                    },
+                                        bytes_below += s;
+                                    }
                                     Some(AsmLine::Instruction(k)) => {
                                         debug!("Iter below: {:?}", k);
                                         bytes_below += k.nb_bytes;
-                                    },
+                                    }
                                     None => notfound |= 2,
-                                    _ => ()
+                                    _ => (),
                                 }
                                 if index_above == 0 {
                                     reached_above = true;
@@ -609,9 +730,9 @@ impl AssemblyCode {
                                     index_above -= 1;
                                 }
                                 index_below += 1;
-                                if notfound == 3 { 
+                                if notfound == 3 {
                                     error!("Label {} not found", inst.dasm_operand);
-                                    unreachable!() 
+                                    unreachable!()
                                 };
                             }
                             // Ok, now we have the distance in bytes
@@ -624,8 +745,8 @@ impl AssemblyCode {
                                 repair = true;
                                 break;
                             }
-                        },
-                        _ => ()
+                        }
+                        _ => (),
                     }
                 }
                 position += 1;
@@ -637,20 +758,43 @@ impl AssemblyCode {
                 let mut remove = 1;
                 let label;
                 let operation = if let AsmLine::Instruction(inst) = &self.code[position] {
-                    signed = (inst.mnemonic == AsmMnemonic::BPL) || (inst.mnemonic == AsmMnemonic::BMI);
+                    signed =
+                        (inst.mnemonic == AsmMnemonic::BPL) || (inst.mnemonic == AsmMnemonic::BMI);
                     label = inst.dasm_operand.clone();
                     match inst.mnemonic {
                         AsmMnemonic::BNE => Operation::Neq,
                         AsmMnemonic::BEQ => Operation::Eq,
-                        AsmMnemonic::BMI => if let Some(AsmLine::Instruction(inst2)) = self.code.get(position + 1) {
-                                if inst2.mnemonic == AsmMnemonic::BEQ && inst2.dasm_operand == inst.dasm_operand { remove = 2; Operation::Lte } else { Operation::Lt }
-                            } else { Operation::Lt },
-                        AsmMnemonic::BCC => if let Some(AsmLine::Instruction(inst2)) = self.code.get(position + 1) {
-                                if inst2.mnemonic == AsmMnemonic::BEQ && inst2.dasm_operand == inst.dasm_operand { remove = 2; Operation::Lte } else { Operation::Lt }
-                            } else { Operation::Lt },
+                        AsmMnemonic::BMI => {
+                            if let Some(AsmLine::Instruction(inst2)) = self.code.get(position + 1) {
+                                if inst2.mnemonic == AsmMnemonic::BEQ
+                                    && inst2.dasm_operand == inst.dasm_operand
+                                {
+                                    remove = 2;
+                                    Operation::Lte
+                                } else {
+                                    Operation::Lt
+                                }
+                            } else {
+                                Operation::Lt
+                            }
+                        }
+                        AsmMnemonic::BCC => {
+                            if let Some(AsmLine::Instruction(inst2)) = self.code.get(position + 1) {
+                                if inst2.mnemonic == AsmMnemonic::BEQ
+                                    && inst2.dasm_operand == inst.dasm_operand
+                                {
+                                    remove = 2;
+                                    Operation::Lte
+                                } else {
+                                    Operation::Lt
+                                }
+                            } else {
+                                Operation::Lt
+                            }
+                        }
                         AsmMnemonic::BPL => Operation::Gte,
                         AsmMnemonic::BCS => Operation::Gte,
-                        _ => unreachable!()
+                        _ => unreachable!(),
                     }
                 } else {
                     unreachable!();
@@ -663,60 +807,110 @@ impl AssemblyCode {
                     Operation::Gte => Operation::Lt,
                     Operation::Lt => Operation::Gte,
                     Operation::Lte => Operation::Gt,
-                    _ => unreachable!()
+                    _ => unreachable!(),
                 };
                 let mut tail = self.code.split_off(position + remove);
                 self.code.truncate(position);
                 let label2 = format!(".fix{}", nb_fixes);
                 match operation2 {
                     Operation::Eq => self.code.push(AsmLine::Instruction(AsmInstruction {
-                        mnemonic: AsmMnemonic::BEQ, dasm_operand: label2.clone(), cycles: 2, cycles_alt: Some(3), nb_bytes: 2, protected: false
+                        mnemonic: AsmMnemonic::BEQ,
+                        dasm_operand: label2.clone(),
+                        cycles: 2,
+                        cycles_alt: Some(3),
+                        nb_bytes: 2,
+                        protected: false,
                     })),
                     Operation::Neq => self.code.push(AsmLine::Instruction(AsmInstruction {
-                        mnemonic: AsmMnemonic::BNE, dasm_operand: label2.clone(), cycles: 2, cycles_alt: Some(3), nb_bytes: 2, protected: false
+                        mnemonic: AsmMnemonic::BNE,
+                        dasm_operand: label2.clone(),
+                        cycles: 2,
+                        cycles_alt: Some(3),
+                        nb_bytes: 2,
+                        protected: false,
                     })),
                     Operation::Gt => {
                         let label3 = format!(".fixup{}", nb_fixes);
                         self.code.push(AsmLine::Instruction(AsmInstruction {
-                            mnemonic: AsmMnemonic::BEQ, dasm_operand: label3.clone(), cycles: 2, cycles_alt: Some(3), nb_bytes: 2, protected: false
-                        }));       
+                            mnemonic: AsmMnemonic::BEQ,
+                            dasm_operand: label3.clone(),
+                            cycles: 2,
+                            cycles_alt: Some(3),
+                            nb_bytes: 2,
+                            protected: false,
+                        }));
                         if signed {
                             self.code.push(AsmLine::Instruction(AsmInstruction {
-                                mnemonic: AsmMnemonic::BPL, dasm_operand: label2.clone(), cycles: 2, cycles_alt: Some(3), nb_bytes: 2, protected: false
-                            }));       
+                                mnemonic: AsmMnemonic::BPL,
+                                dasm_operand: label2.clone(),
+                                cycles: 2,
+                                cycles_alt: Some(3),
+                                nb_bytes: 2,
+                                protected: false,
+                            }));
                         } else {
                             self.code.push(AsmLine::Instruction(AsmInstruction {
-                                mnemonic: AsmMnemonic::BCS, dasm_operand: label2.clone(), cycles: 2, cycles_alt: Some(3), nb_bytes: 2, protected: false
-                            }));       
+                                mnemonic: AsmMnemonic::BCS,
+                                dasm_operand: label2.clone(),
+                                cycles: 2,
+                                cycles_alt: Some(3),
+                                nb_bytes: 2,
+                                protected: false,
+                            }));
                         }
                         self.code.push(AsmLine::Label(label3));
-                    },
+                    }
                     Operation::Gte => {
                         if signed {
                             self.code.push(AsmLine::Instruction(AsmInstruction {
-                                mnemonic: AsmMnemonic::BPL, dasm_operand: label2.clone(), cycles: 2, cycles_alt: Some(3), nb_bytes: 2, protected: false
-                            }));       
+                                mnemonic: AsmMnemonic::BPL,
+                                dasm_operand: label2.clone(),
+                                cycles: 2,
+                                cycles_alt: Some(3),
+                                nb_bytes: 2,
+                                protected: false,
+                            }));
                         } else {
                             self.code.push(AsmLine::Instruction(AsmInstruction {
-                                mnemonic: AsmMnemonic::BCS, dasm_operand: label2.clone(), cycles: 2, cycles_alt: Some(3), nb_bytes: 2, protected: false
-                            }));       
+                                mnemonic: AsmMnemonic::BCS,
+                                dasm_operand: label2.clone(),
+                                cycles: 2,
+                                cycles_alt: Some(3),
+                                nb_bytes: 2,
+                                protected: false,
+                            }));
                         }
-                    },
+                    }
                     Operation::Lt => {
                         if signed {
                             self.code.push(AsmLine::Instruction(AsmInstruction {
-                                mnemonic: AsmMnemonic::BMI, dasm_operand: label2.clone(), cycles: 2, cycles_alt: Some(3), nb_bytes: 2, protected: false
-                            }));       
+                                mnemonic: AsmMnemonic::BMI,
+                                dasm_operand: label2.clone(),
+                                cycles: 2,
+                                cycles_alt: Some(3),
+                                nb_bytes: 2,
+                                protected: false,
+                            }));
                         } else {
                             self.code.push(AsmLine::Instruction(AsmInstruction {
-                                mnemonic: AsmMnemonic::BCC, dasm_operand: label2.clone(), cycles: 2, cycles_alt: Some(3), nb_bytes: 2, protected: false
-                            }));       
+                                mnemonic: AsmMnemonic::BCC,
+                                dasm_operand: label2.clone(),
+                                cycles: 2,
+                                cycles_alt: Some(3),
+                                nb_bytes: 2,
+                                protected: false,
+                            }));
                         }
-                    },
-                    _ => unreachable!()
+                    }
+                    _ => unreachable!(),
                 }
                 self.code.push(AsmLine::Instruction(AsmInstruction {
-                    mnemonic: AsmMnemonic::JMP, dasm_operand: label, cycles: 3, cycles_alt: None, nb_bytes: 3, protected: false
+                    mnemonic: AsmMnemonic::JMP,
+                    dasm_operand: label,
+                    cycles: 3,
+                    cycles_alt: None,
+                    nb_bytes: 3,
+                    protected: false,
                 }));
                 self.code.push(AsmLine::Label(label2));
                 self.code.append(&mut tail);
