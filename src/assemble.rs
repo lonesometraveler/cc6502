@@ -98,14 +98,68 @@ enum AsmLine {
     Dummy,
 }
 
+#[test]
+fn test_write() -> Result<(), std::io::Error> {
+    // Create an example AsmLine for each variant
+    let label_line = AsmLine::Label(String::from("my_label"));
+    let instruction_line = AsmLine::Instruction(AsmInstruction {
+        mnemonic: AsmMnemonic::LDA,
+        dasm_operand: String::from("#42"),
+        cycles: 2,
+        cycles_alt: None,
+        protected: false,
+        nb_bytes: 2,
+    });
+    let inline_line = AsmLine::Inline(String::from("INLINE"), 0);
+    let comment_line = AsmLine::Comment(String::from("This is a comment"));
+    let dummy_line = AsmLine::Dummy;
+
+    // Set up a Vec<u8> as a writer
+    let mut writer: Vec<u8> = Vec::new();
+
+    // Call the write function for each variant and check the output
+    assert_eq!(label_line.write(&mut writer, true)?, 9);
+    assert_eq!(instruction_line.write(&mut writer, true)?, 29);
+    assert_eq!(inline_line.write(&mut writer, true)?, 8);
+    assert_eq!(comment_line.write(&mut writer, true)?, 19);
+    assert_eq!(dummy_line.write(&mut writer, true)?, 0);
+
+    // Check the content written to the writer
+    assert_eq!(
+        String::from_utf8_lossy(&writer),
+        "my_label\n\tLDA #42                \t; 2\n\tINLINE\n;This is a comment\n"
+    );
+
+    Ok(())
+}
+
+#[test]
+fn test_write_cycles_str_empty() -> Result<(), std::io::Error> {
+    let instruction_line = AsmLine::Instruction(AsmInstruction {
+        mnemonic: AsmMnemonic::NOP,
+        dasm_operand: String::from(""),
+        cycles: 3,
+        cycles_alt: None,
+        protected: false,
+        nb_bytes: 1,
+    });
+
+    // Set up a Vec<u8> as a writer
+    let mut writer: Vec<u8> = Vec::new();
+
+    // Call the write function and check the output
+    assert_eq!(instruction_line.write(&mut writer, false)?, 5);
+
+    // Check the content written to the writer
+    assert_eq!(String::from_utf8_lossy(&writer), "\tNOP\n");
+
+    Ok(())
+}
+
 impl AsmLine {
     fn write(&self, writer: &mut dyn Write, cycles: bool) -> Result<usize, std::io::Error> {
-        let mut s = 0;
-        match self {
-            AsmLine::Label(string) => {
-                s += writer.write(string.as_bytes())?;
-                s += writer.write("\n".as_bytes())?;
-            }
+        let s = match self {
+            AsmLine::Label(string) => format!("{}\n", string),
             AsmLine::Instruction(inst) => {
                 if cycles {
                     let c = if let Some(alt) = inst.cycles_alt {
@@ -113,33 +167,24 @@ impl AsmLine {
                     } else {
                         format!("\t; {}", inst.cycles)
                     };
+
                     if !inst.dasm_operand.is_empty() {
-                        s += writer.write(
-                            format!("\t{} {:19}{}\n", inst.mnemonic, &inst.dasm_operand, c)
-                                .as_bytes(),
-                        )?;
+                        format!("\t{} {:19}{}\n", inst.mnemonic, &inst.dasm_operand, c)
                     } else {
-                        s += writer.write(format!("\t{:23}{}\n", inst.mnemonic, c).as_bytes())?;
+                        format!("\t{:23}{}\n", inst.mnemonic, c)
                     }
+                } else if !inst.dasm_operand.is_empty() {
+                    format!("\t{} {}\n", inst.mnemonic, &inst.dasm_operand)
                 } else {
-                    if !inst.dasm_operand.is_empty() {
-                        s += writer.write(
-                            format!("\t{} {}\n", inst.mnemonic, &inst.dasm_operand).as_bytes(),
-                        )?;
-                    } else {
-                        s += writer.write(format!("\t{}\n", inst.mnemonic).as_bytes())?;
-                    }
+                    format!("\t{}\n", inst.mnemonic)
                 }
             }
-            AsmLine::Inline(inst, _) => {
-                s += writer.write(format!("\t{}\n", inst).as_bytes())?;
-            }
-            AsmLine::Comment(comment) => {
-                s += writer.write(format!(";{}\n", comment).as_bytes())?;
-            }
-            AsmLine::Dummy => (),
-        }
-        Ok(s)
+            AsmLine::Inline(inst, _) => format!("\t{}\n", inst),
+            AsmLine::Comment(comment) => format!(";{}\n", comment),
+            AsmLine::Dummy => String::new(),
+        };
+
+        writer.write(s.as_bytes())
     }
 }
 
