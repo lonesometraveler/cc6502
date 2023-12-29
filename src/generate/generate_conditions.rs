@@ -73,9 +73,9 @@ impl<'a, 'b> GeneratorState<'a> {
                             self.generate_condition(condition, pos, true, &else_label, true)?;
                         if let Some(b) = cond {
                             if b {
-                                return Ok(self.generate_expr(rhs, pos, false, false)?);
+                                Ok(self.generate_expr(rhs, pos, false, false)?)
                             } else {
-                                return Ok(self.generate_expr(lhs, pos, false, false)?);
+                                Ok(self.generate_expr(lhs, pos, false, false)?)
                             }
                         } else {
                             let left = self.generate_expr(lhs, pos, false, false)?;
