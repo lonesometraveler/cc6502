@@ -1882,14 +1882,13 @@ impl<'a> CompilerState<'a> {
                                 };
                                 v.size * s
                             } else {
-                                let s = match v.var_type {
+                                match v.var_type {
                                     VariableType::Char => 1,
                                     VariableType::Short => 2,
                                     VariableType::CharPtr => 2,
                                     VariableType::CharPtrPtr => 2,
                                     VariableType::ShortPtr => 2,
-                                };
-                                s
+                                }
                             }
                         }
                     }
