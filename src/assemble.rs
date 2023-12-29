@@ -147,6 +147,11 @@ impl AsmLine {
 pub struct AssemblyCode {
     code: Vec<AsmLine>,
 }
+impl Default for AssemblyCode {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 
 impl AssemblyCode {
     pub fn new() -> AssemblyCode {
