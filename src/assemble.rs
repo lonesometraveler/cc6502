@@ -370,166 +370,164 @@ impl AssemblyCode {
             }
 
             // Analyze pairs of instructions
-            if let Some(AsmLine::Instruction(i1)) = &first {
-                if let Some(AsmLine::Instruction(i2)) = &second {
-                    // Remove PLA/PHA pairs
-                    if i1.mnemonic == AsmMnemonic::PLA
-                        && i2.mnemonic == AsmMnemonic::PHA
-                        && !i1.protected
-                        && !i2.protected
-                    {
-                        remove_both = true;
-                    }
-                    // Remove STA followed by LDA
-                    if i1.mnemonic == AsmMnemonic::STA
-                        && i2.mnemonic == AsmMnemonic::LDA
-                        && i1.dasm_operand == i2.dasm_operand
-                        && !i2.protected
-                    {
-                        remove_second = true;
-                    }
-                    // Remove LDA followed by STA
-                    if i1.mnemonic == AsmMnemonic::LDA
-                        && i2.mnemonic == AsmMnemonic::STA
-                        && i1.dasm_operand == i2.dasm_operand
-                        && !i2.protected
-                    {
-                        remove_second = true;
-                    }
-                    // Remove LDY followed by STY
-                    if i1.mnemonic == AsmMnemonic::LDY
-                        && i2.mnemonic == AsmMnemonic::STY
-                        && i1.dasm_operand == i2.dasm_operand
-                        && !i2.protected
-                    {
-                        remove_second = true;
-                    }
-                    // Remove LDX followed by STX
-                    if i1.mnemonic == AsmMnemonic::LDX
-                        && i2.mnemonic == AsmMnemonic::STX
-                        && i1.dasm_operand == i2.dasm_operand
-                        && !i2.protected
-                    {
-                        remove_second = true;
-                    }
-                    // Remove TAX followed by TXA
-                    if i1.mnemonic == AsmMnemonic::TAX
-                        && i2.mnemonic == AsmMnemonic::TXA
-                        && !i2.protected
-                    {
-                        remove_second = true;
-                    }
-                    // Remove TXA followed by TAX
-                    if i1.mnemonic == AsmMnemonic::TXA
-                        && i2.mnemonic == AsmMnemonic::TAX
-                        && !i2.protected
-                    {
-                        remove_second = true;
-                    }
-                    // Remove TAY followed by TYA
-                    if i1.mnemonic == AsmMnemonic::TAY
-                        && i2.mnemonic == AsmMnemonic::TYA
-                        && !i2.protected
-                    {
-                        remove_second = true;
-                    }
-                    // Remove TYA followed by TAY
-                    if i1.mnemonic == AsmMnemonic::TYA
-                        && i2.mnemonic == AsmMnemonic::TAY
-                        && !i2.protected
-                    {
-                        remove_second = true;
-                    }
-                    if i1.mnemonic == AsmMnemonic::LDA
-                        && i2.mnemonic == AsmMnemonic::LDA
-                        && !i1.protected
-                    {
-                        remove_first = true;
-                    }
-                    if i1.mnemonic == AsmMnemonic::LDY
-                        && i2.mnemonic == AsmMnemonic::LDY
-                        && !i1.protected
-                    {
-                        remove_first = true;
-                    }
-                    if i1.mnemonic == AsmMnemonic::LDX
-                        && i2.mnemonic == AsmMnemonic::LDX
-                        && !i1.protected
-                    {
-                        remove_first = true;
-                    }
-                    if i2.mnemonic == AsmMnemonic::ORA && i2.dasm_operand == "#0" && !i2.protected {
-                        remove_second = true;
-                    }
-                    if i1.mnemonic == AsmMnemonic::LDA
-                        && (i2.mnemonic == AsmMnemonic::SEC || i2.mnemonic == AsmMnemonic::CLC)
-                    {
-                        swap_both = true;
-                    }
-                    // Check CMP and remove the branck if the result is obvious
-                    if let Some(r) = accumulator {
-                        if i1.mnemonic == AsmMnemonic::CMP && i1.dasm_operand.starts_with('#') {
-                            if let Ok(v) = i1.dasm_operand[1..].parse::<i32>() {
-                                // The result IS obvious
-                                match i2.mnemonic {
-                                    AsmMnemonic::BNE => {
-                                        if r == v {
-                                            remove_both = true;
-                                        }
+            if let (Some(AsmLine::Instruction(i1)), Some(AsmLine::Instruction(i2))) =
+                (&first, &second)
+            {
+                // Remove PLA/PHA pairs
+                if i1.mnemonic == AsmMnemonic::PLA
+                    && i2.mnemonic == AsmMnemonic::PHA
+                    && !i1.protected
+                    && !i2.protected
+                {
+                    remove_both = true;
+                }
+                // Remove STA followed by LDA
+                if i1.mnemonic == AsmMnemonic::STA
+                    && i2.mnemonic == AsmMnemonic::LDA
+                    && i1.dasm_operand == i2.dasm_operand
+                    && !i2.protected
+                {
+                    remove_second = true;
+                }
+                // Remove LDA followed by STA
+                if i1.mnemonic == AsmMnemonic::LDA
+                    && i2.mnemonic == AsmMnemonic::STA
+                    && i1.dasm_operand == i2.dasm_operand
+                    && !i2.protected
+                {
+                    remove_second = true;
+                }
+                // Remove LDY followed by STY
+                if i1.mnemonic == AsmMnemonic::LDY
+                    && i2.mnemonic == AsmMnemonic::STY
+                    && i1.dasm_operand == i2.dasm_operand
+                    && !i2.protected
+                {
+                    remove_second = true;
+                }
+                // Remove LDX followed by STX
+                if i1.mnemonic == AsmMnemonic::LDX
+                    && i2.mnemonic == AsmMnemonic::STX
+                    && i1.dasm_operand == i2.dasm_operand
+                    && !i2.protected
+                {
+                    remove_second = true;
+                }
+                // Remove TAX followed by TXA
+                if i1.mnemonic == AsmMnemonic::TAX
+                    && i2.mnemonic == AsmMnemonic::TXA
+                    && !i2.protected
+                {
+                    remove_second = true;
+                }
+                // Remove TXA followed by TAX
+                if i1.mnemonic == AsmMnemonic::TXA
+                    && i2.mnemonic == AsmMnemonic::TAX
+                    && !i2.protected
+                {
+                    remove_second = true;
+                }
+                // Remove TAY followed by TYA
+                if i1.mnemonic == AsmMnemonic::TAY
+                    && i2.mnemonic == AsmMnemonic::TYA
+                    && !i2.protected
+                {
+                    remove_second = true;
+                }
+                // Remove TYA followed by TAY
+                if i1.mnemonic == AsmMnemonic::TYA
+                    && i2.mnemonic == AsmMnemonic::TAY
+                    && !i2.protected
+                {
+                    remove_second = true;
+                }
+                if i1.mnemonic == AsmMnemonic::LDA
+                    && i2.mnemonic == AsmMnemonic::LDA
+                    && !i1.protected
+                {
+                    remove_first = true;
+                }
+                if i1.mnemonic == AsmMnemonic::LDY
+                    && i2.mnemonic == AsmMnemonic::LDY
+                    && !i1.protected
+                {
+                    remove_first = true;
+                }
+                if i1.mnemonic == AsmMnemonic::LDX
+                    && i2.mnemonic == AsmMnemonic::LDX
+                    && !i1.protected
+                {
+                    remove_first = true;
+                }
+                if i2.mnemonic == AsmMnemonic::ORA && i2.dasm_operand == "#0" && !i2.protected {
+                    remove_second = true;
+                }
+                if i1.mnemonic == AsmMnemonic::LDA
+                    && (i2.mnemonic == AsmMnemonic::SEC || i2.mnemonic == AsmMnemonic::CLC)
+                {
+                    swap_both = true;
+                }
+                // Check CMP and remove the branck if the result is obvious
+                if let (Some(r), AsmMnemonic::CMP) = (accumulator, i1.mnemonic) {
+                    if i1.dasm_operand.starts_with('#') {
+                        if let Ok(v) = i1.dasm_operand[1..].parse::<i32>() {
+                            // The result IS obvious
+                            match i2.mnemonic {
+                                AsmMnemonic::BNE => {
+                                    if r == v {
+                                        remove_both = true;
                                     }
-                                    AsmMnemonic::BEQ => {
-                                        if r != v {
-                                            remove_both = true;
-                                        }
-                                    }
-                                    _ => (),
                                 }
+                                AsmMnemonic::BEQ => {
+                                    if r != v {
+                                        remove_both = true;
+                                    }
+                                }
+                                _ => (),
                             }
                         }
                     }
-                    if let Some(r) = x_register {
-                        if i1.mnemonic == AsmMnemonic::CPX && i1.dasm_operand.starts_with('#') {
-                            if let Ok(v) = i1.dasm_operand[1..].parse::<i32>() {
-                                // The result IS obvious
-                                match i2.mnemonic {
-                                    AsmMnemonic::BNE => {
-                                        if r == v {
-                                            remove_both = true;
-                                        }
+                }
+                if let (Some(r), AsmMnemonic::CPX) = (x_register, i1.mnemonic) {
+                    if i1.dasm_operand.starts_with('#') {
+                        if let Ok(v) = i1.dasm_operand[1..].parse::<i32>() {
+                            // The result IS obvious
+                            match i2.mnemonic {
+                                AsmMnemonic::BNE => {
+                                    if r == v {
+                                        remove_both = true;
                                     }
-                                    AsmMnemonic::BEQ => {
-                                        if r != v {
-                                            remove_both = true;
-                                        }
-                                    }
-                                    _ => (),
                                 }
+                                AsmMnemonic::BEQ => {
+                                    if r != v {
+                                        remove_both = true;
+                                    }
+                                }
+                                _ => (),
                             }
                         }
                     }
-                    if let Some(r) = y_register {
-                        if i1.mnemonic == AsmMnemonic::CPY && i1.dasm_operand.starts_with('#') {
-                            if let Ok(v) = i1.dasm_operand[1..].parse::<i32>() {
-                                // The result IS obvious
-                                match i2.mnemonic {
-                                    AsmMnemonic::BNE => {
-                                        if r == v {
-                                            remove_both = true;
-                                        }
+                }
+                if let (Some(r), AsmMnemonic::CPY) = (y_register, i1.mnemonic) {
+                    if i1.dasm_operand.starts_with('#') {
+                        if let Ok(v) = i1.dasm_operand[1..].parse::<i32>() {
+                            // The result IS obvious
+                            match i2.mnemonic {
+                                AsmMnemonic::BNE => {
+                                    if r == v {
+                                        remove_both = true;
                                     }
-                                    AsmMnemonic::BEQ => {
-                                        if r != v {
-                                            remove_both = true;
-                                        }
-                                    }
-                                    _ => (),
                                 }
+                                AsmMnemonic::BEQ => {
+                                    if r != v {
+                                        remove_both = true;
+                                    }
+                                }
+                                _ => (),
                             }
                         }
                     }
-                } else {
-                    unreachable!()
-                };
+                }
             } else {
                 unreachable!()
             };
