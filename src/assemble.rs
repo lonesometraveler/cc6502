@@ -206,19 +206,14 @@ impl AssemblyCode {
     }
 
     pub fn size_bytes(&self) -> u32 {
-        let mut size = 0;
-        for c in self.code.iter() {
-            match c {
-                AsmLine::Instruction(i) => {
-                    size += i.nb_bytes;
-                }
-                AsmLine::Inline(_, s) => {
-                    size += s;
-                }
-                _ => {}
-            }
-        }
-        size
+        self.code
+            .iter()
+            .map(|c| match c {
+                AsmLine::Instruction(i) => i.nb_bytes,
+                AsmLine::Inline(_, s) => *s,
+                _ => 0,
+            })
+            .sum()
     }
 
     pub fn append_asm(&mut self, inst: AsmInstruction) {
@@ -641,6 +636,7 @@ impl AssemblyCode {
                 if let Some(f) = &mut second {
                     (**f) = tmp1;
                 }
+
                 accumulator = None;
             } else if remove_both {
                 *first.unwrap() = AsmLine::Dummy;
