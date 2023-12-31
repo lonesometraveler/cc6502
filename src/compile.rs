@@ -258,7 +258,7 @@ impl<'a> CompilerState<'a> {
         }
     }
 
-    pub fn warning(&self, msg: &str, loc: usize) -> () {
+    pub fn warning(&self, msg: &str, loc: usize) {
         let mut line_number: usize = 0;
         let mut char_number = 0;
         for c in self.preprocessed_utf8.chars() {
@@ -311,7 +311,7 @@ impl<'a> CompilerState<'a> {
         match self.in_scope_variables.last() {
             Some(vars) => {
                 match vars.get(varname) {
-                    Some(vn) => return Ok((vn.clone(), subscript)),
+                    Some(vn) => Ok((vn.clone(), subscript)),
                     None => match self.functions.get(varname) {
                         Some(_var) => match *subscript {
                             Expr::Nothing => Ok((varname.into(), subscript)),
