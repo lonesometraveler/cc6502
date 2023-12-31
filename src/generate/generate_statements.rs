@@ -173,7 +173,7 @@ impl<'a> GeneratorState<'a> {
                                             break;
                                         }
                                     }
-                                    if let Some(_) = param_iter.next() {
+                                    if param_iter.next().is_some() {
                                         return Err(self.compiler_state.syntax_error(
                                             "Not enough parameters provided in function call",
                                             pos,
@@ -256,8 +256,7 @@ impl<'a> GeneratorState<'a> {
                                     if let Some(v) = self.functions_call_tree.get_mut(f) {
                                         v.push(var.to_string());
                                     } else {
-                                        let mut v = Vec::new();
-                                        v.push(var.to_string());
+                                        let v = vec![var.to_string()];
                                         self.functions_call_tree.insert(f.clone(), v);
                                     }
                                 }
@@ -396,7 +395,7 @@ impl<'a> GeneratorState<'a> {
     fn generate_sizeof(&mut self, expr: &Expr, pos: usize) -> Result<ExprType, Error> {
         match expr {
             Expr::Type(s) => {
-                if s.contains("*") {
+                if s.contains('*') {
                     Ok(ExprType::Immediate(2))
                 } else if s == "char" {
                     Ok(ExprType::Immediate(1))
@@ -588,23 +587,21 @@ impl<'a> GeneratorState<'a> {
                         ExprType::Nothing => {
                             if let VariableDefinition::Value(VariableValue::Int(val)) = &v.def {
                                 Ok(ExprType::Immediate(*val))
-                            } else {
-                                if high_byte && v.var_type == VariableType::Char && v.signed {
-                                    self.generate_sign_extend(
-                                        ExprType::Absolute(
-                                            variable.into(),
-                                            v.var_type == VariableType::Char,
-                                            0,
-                                        ),
-                                        pos,
-                                    )
-                                } else {
-                                    Ok(ExprType::Absolute(
+                            } else if high_byte && v.var_type == VariableType::Char && v.signed {
+                                self.generate_sign_extend(
+                                    ExprType::Absolute(
                                         variable.into(),
                                         v.var_type == VariableType::Char,
                                         0,
-                                    ))
-                                }
+                                    ),
+                                    pos,
+                                )
+                            } else {
+                                Ok(ExprType::Absolute(
+                                    variable.into(),
+                                    v.var_type == VariableType::Char,
+                                    0,
+                                ))
                             }
                         }
                         ExprType::X => {
@@ -659,26 +656,24 @@ impl<'a> GeneratorState<'a> {
                                         val,
                                     ))
                                 }
-                            } else {
-                                if tmp_in_use || self.tmp_in_use || self.saved_y {
-                                    Err(self
-                                        .compiler_state
-                                        .syntax_error("Code too complex for the compiler", pos))
-                                } else if let Some(dummy_pos) = dummy {
-                                    self.tmp_in_use = true;
-                                    if self.warnings.iter().any(|s| s == "all" || s == "perf") {
-                                        self.compiler_state
-                                            .warning("Performance hit. Y has to be saved", pos);
-                                    }
-                                    self.asm_save_y(dummy_pos);
-                                    self.asm(LDY, &sub_output, pos, false)?;
-                                    self.saved_y = true;
-                                    Ok(ExprType::AbsoluteY(variable.into()))
-                                } else {
-                                    Err(self
-                                        .compiler_state
-                                        .syntax_error("Code too complex for the compiler", pos))
+                            } else if tmp_in_use || self.tmp_in_use || self.saved_y {
+                                Err(self
+                                    .compiler_state
+                                    .syntax_error("Code too complex for the compiler", pos))
+                            } else if let Some(dummy_pos) = dummy {
+                                self.tmp_in_use = true;
+                                if self.warnings.iter().any(|s| s == "all" || s == "perf") {
+                                    self.compiler_state
+                                        .warning("Performance hit. Y has to be saved", pos);
                                 }
+                                self.asm_save_y(dummy_pos);
+                                self.asm(LDY, &sub_output, pos, false)?;
+                                self.saved_y = true;
+                                Ok(ExprType::AbsoluteY(variable.into()))
+                            } else {
+                                Err(self
+                                    .compiler_state
+                                    .syntax_error("Code too complex for the compiler", pos))
                             }
                         }
                         _ => {
@@ -880,12 +875,10 @@ impl<'a> GeneratorState<'a> {
                     } else {
                         self.generate_assign(&ExprType::A(f.return_signed), &e, pos, false)?;
                     }
-                } else {
-                    if e != ExprType::Nothing {
-                        return Err(self
-                            .compiler_state
-                            .syntax_error("void function can't return a value", pos));
-                    }
+                } else if e != ExprType::Nothing {
+                    return Err(self
+                        .compiler_state
+                        .syntax_error("void function can't return a value", pos));
                 }
             }
         } else {
@@ -1029,7 +1022,7 @@ impl<'a> GeneratorState<'a> {
                     let lxx = lx.to_mut();
                     lxx.truncate(256);
                     lxx.push_str("...\n");
-                    self.comment(&lxx)?; // Should include the '\n'
+                    self.comment(lxx)?; // Should include the '\n'
                 } else {
                     self.comment(&lx)?; // Should include the '\n'
                 }
