@@ -234,18 +234,26 @@ impl<'a> CompilerState<'a> {
         v
     }
 
-    pub fn syntax_error(&self, message: &str, loc: usize) -> Error {
-        let mut line_number: usize = 0;
+    // Returns the line number of the given location
+    fn find_line(&self, loc: usize) -> usize {
+        let mut line_number = 0;
         let mut char_number = 0;
-        for c in self.preprocessed_utf8.chars() {
-            if c == '\n' {
-                line_number += 1;
-            }
-            char_number += 1;
-            if char_number == loc {
+
+        for (line_idx, line) in self.preprocessed_utf8.lines().enumerate() {
+            if char_number + line.len() >= loc {
                 break;
             }
+
+            char_number += line.len() + 1; // Add 1 for the newline character
+            line_number = line_idx + 1;
         }
+
+        line_number
+    }
+
+    pub fn syntax_error(&self, message: &str, loc: usize) -> Error {
+        let line_number = self.find_line(loc);
+
         let included_in = self.mapped_lines[line_number]
             .2
             .as_ref()
@@ -259,17 +267,8 @@ impl<'a> CompilerState<'a> {
     }
 
     pub fn warning(&self, msg: &str, loc: usize) {
-        let mut line_number: usize = 0;
-        let mut char_number = 0;
-        for c in self.preprocessed_utf8.chars() {
-            if c == '\n' {
-                line_number += 1;
-            }
-            char_number += 1;
-            if char_number == loc {
-                break;
-            }
-        }
+        let line_number = self.find_line(loc);
+
         let included_in = self.mapped_lines[line_number]
             .2
             .as_ref()
